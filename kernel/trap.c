@@ -161,12 +161,13 @@ kerneltrap()
 }
 
 void
-clockintr()
+clockintr()     
 {
   acquire(&tickslock);
   ticks++;
   wakeup(&ticks);
   release(&tickslock);
+  //printf("%x", ticks);
 }
 
 // check if it's an external interrupt or software interrupt,

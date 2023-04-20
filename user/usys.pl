@@ -22,6 +22,7 @@ entry("pipe");
 entry("read");
 entry("write");
 entry("close");
+entry("getTicks");
 entry("kill");
 entry("exec");
 entry("open");
