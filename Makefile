@@ -123,6 +123,7 @@ UPROGS=\
 	$U/_init\
 	$U/_kill\
 	$U/_getTicks\
+	$U/_sysinfo\
 	$U/_ln\
 	$U/_ls\
 	$U/_mkdir\

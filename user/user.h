@@ -1,4 +1,5 @@
 struct stat;
+struct sysinfo;
 
 // system calls
 int fork(void);
@@ -9,6 +10,7 @@ int write(int, const void *, int);
 int read(int, void *, int);
 int close(int);
 int getTicks(int);
+int sysinfo(struct sysinfo *);
 int kill(int);
 int exec(const char *, char **);
 int open(const char *, int);

@@ -27,6 +27,19 @@ sys_fork(void)
   return fork();
 }
 
+uint64 sys_sysinfo(void){
+
+  struct sysinfo sinfo;
+  uint64 info;
+  argaddr(0,&info);
+  sysinfo(&sinfo);
+  
+  if(copyout(myproc()->pagetable,(uint64)info,(char*)&sinfo,sizeof(struct sysinfo))<0)
+    return -1;
+  
+  return 0;
+}
+
 uint64
 sys_wait(void)
 {

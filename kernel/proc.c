@@ -295,7 +295,7 @@ int fork(void)
   {
     return -1;
   }
-  
+
   // Copy user memory from parent to child.
   if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0)
   {
@@ -596,15 +596,17 @@ void wakeup(void *chan)
   }
 }
 
-int getTicks(int pid){
+int getTicks(int pid)
+{
   struct proc *p;
-  for(p=proc; p< &proc[NPROC];p++ )
-    if (p->pid == pid){
-      printf("pid:%d\nticks:%d\npticks:%d\n",p->pid,ticks,p->ticks);
-      return ticks-p->ticks;
+  for (p = proc; p < &proc[NPROC]; p++)
+    if (p->pid == pid)
+    {
+      printf("pid:%d\nticks:%d\npticks:%d\n", p->pid, ticks, p->ticks);
+      return ticks - p->ticks;
     }
-  printf("not exist\n");  
-  return -1;  
+  printf("not exist\n");
+  return -1;
 }
 
 // Kill the process with the given pid.
@@ -711,4 +713,27 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int sysinfo(struct sysinfo *info){
+
+  info->uptime=ticks;
+  info->totalram=PHYSTOP-KERNBASE;
+  info->freeram=kfreeram() * PGSIZE;
+  info->procs=usedProc();
+  return 0;
+}
+
+
+ushort usedProc(void){
+  ushort used=0;
+  struct proc *p;
+
+  for(p=proc;p<&proc[NPROC];p++){
+    acquire(&p->lock);
+    if(p->state!=UNUSED)
+      used++;
+    release(&p->lock);  
+  }
+  return used;    
 }
