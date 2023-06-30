@@ -64,6 +64,62 @@ void usertrap(void)
 
     syscall();
   }
+  else if(r_scause()==15){
+    
+    if(killed(p))
+      exit(-1);
+
+    // process pagetable
+    pagetable_t my_pagetable =p->pagetable;
+
+    // virtual address error handling ,va bigger than MAXVA
+    if (r_stval()>=MAXVA){
+      p->killed = 1;
+      exit(-1);
+    }
+
+    // get pte from virtual address: r_stval()
+    pte_t *my_pte = walk(my_pagetable, r_stval(), 0);
+    // exit if pte null
+      if(!my_pte)
+        exit(-1);
+    // and the physical page
+    uint64 pa = PTE2PA(*my_pte);
+    //exit if pa null
+      if (!pa)
+        exit(-1);
+    
+    // exit if pte_cow flag is not set
+    if(!(*my_pte&PTE_COW)){
+      exit(-1);
+    }
+    
+      uint flags;
+      char *mem;
+
+      // new page flag
+      flags = PTE_FLAGS(*my_pte);
+      flags |= PTE_W; // writeable flag 1
+      flags &= ~PTE_COW; // COW flag 0
+
+      if((mem = kalloc()) == 0){
+        // no available memory so exit
+        p->killed=1;
+        exit(-1);
+      }
+
+      // copy old page to the new
+      memmove(mem, (char*)pa, PGSIZE);
+
+      // new page to a pte
+      *my_pte = PA2PTE(mem) | flags;
+        
+      kfree((char*)pa); // decrease the counter or delete teh apge accordingly
+      
+      p->trapframe->epc = r_sepc(); // restart the instruction
+
+   
+  }
   else if ((which_dev = devintr()) != 0)
   {
     // ok

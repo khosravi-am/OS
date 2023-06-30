@@ -602,7 +602,7 @@ int getTicks(int pid)
   for (p = proc; p < &proc[NPROC]; p++)
     if (p->pid == pid)
     {
-      printf("pid:%d\nticks:%d\npticks:%d\n", p->pid, ticks, p->ticks);
+      //printf("pid:%d\nticks:%d\npticks:%d\n", p->pid, ticks, p->ticks);
       return ticks - p->ticks;
     }
   printf("not exist\n");

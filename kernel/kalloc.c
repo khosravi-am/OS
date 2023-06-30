@@ -9,6 +9,8 @@
 #include "riscv.h"
 #include "defs.h"
 
+#define REFCNTINDX(pa) ((pa-KERNBASE)/PGSIZE)
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -25,9 +27,47 @@ struct
   struct run *freelist;
 } kmem;
 
+static struct 
+{
+  struct spinlock lock;
+  int cnt[(PHYSTOP-KERNBASE)/PGSIZE];
+} kref;
+
+void krefLock()
+{ 
+  acquire(&kref.lock);
+}
+
+void krefUnlock()
+{
+  release(&kref.lock);
+}
+
+static void refSet(uint64 pa,int cnt)
+{
+  krefLock();
+  kref.cnt[REFCNTINDX(pa)]=cnt;
+  krefUnlock();
+}
+
+void refIncrease(uint64 pa)
+{
+  krefLock();
+  kref.cnt[REFCNTINDX(pa)]++;
+  krefUnlock();
+}
+
+static void refDecrease(uint64 pa)
+{
+  krefLock();
+  kref.cnt[REFCNTINDX(pa)]--;
+  krefUnlock();
+}
+
 void kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&kref.lock, "krefCounter");
   freerange(end, (void *)PHYSTOP);
 }
 
@@ -35,8 +75,10 @@ void freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char *)PGROUNDUP((uint64)pa_start);
-  for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
+  for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE){
+    refSet((uint64)p,1);
     kfree(p);
+  }
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -51,14 +93,22 @@ void kfree(void *pa)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
-  memset(pa, 1, PGSIZE);
+  
+  if(kref.cnt[REFCNTINDX((uint64)pa)]-1 <=0 ){
+    memset(pa, 1, PGSIZE);
 
-  r = (struct run *)pa;
+    r = (struct run *)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+    acquire(&kmem.lock);
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+    release(&kmem.lock);
+    
+  }
+  else{
+      refDecrease((uint64)pa);
+  }
+
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -71,12 +121,16 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if (r)
+  if (r){
     kmem.freelist = r->next;
+    
+  }
   release(&kmem.lock);
 
-  if (r)
+  if (r){
     memset((char *)r, 5, PGSIZE); // fill with junk
+    refSet((uint64)r,1);
+  }
   return (void *)r;
 }
 
